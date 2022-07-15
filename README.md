@@ -25,7 +25,7 @@ addr = '192.168.0.117'
 vna = E5071C(addr)
 
 vna.set_freq_axis(start=1, stop=2, point=1001, bandwidth=1000, sweep_type='lin')
-vna.set_set_response_axes(trace_formates=['mlog', 'phase, plot], delay=1, phase_offset=180, Spar='S12')
+vna.set_set_response_axes(trace_formates=['mlog', 'phase', 'plot'], delay=1, phase_offset=180, Spar='S12')
 vna.set_averaging(state='off', count=0)
 vna.set_trigger(source='bus', averaging=0, initiate=True)
 
