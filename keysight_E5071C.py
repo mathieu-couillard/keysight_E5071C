@@ -1,10 +1,12 @@
 import numpy as np
+import pandas as pd
 import pyvisa as visa
+from time import sleep
 
 
 class E5071C:
     def __init__(self, address, configs="", verbatim=False):
-        self._inst = visa.ResourceManager('@py').open_resource("TCPIP::{}::INSTR".format(address))
+        self._inst = visa.ResourceManager('@py').open_resource(address)
         self._active_chan = 1
         self._active_trace = 1
         self.verbatim = verbatim  # Print every command before sending
@@ -147,7 +149,7 @@ class E5071C:
         if trace_format in trace_formats:
             return self._com(':CALC{}:SEL:FORM{}'.format(chan, trace_formats[trace_format]))
         else:
-            raise Exception("InvalidFormatError. valid strings are {}".format(formats.keys()))
+            raise Exception("InvalidFormatError. valid strings are {}".format(trace_formats.keys()))
 
     ########################################
     # Output
@@ -251,6 +253,8 @@ class E5071C:
 
     def trigger_now(self):
         self._com(":TRIG:SING")
+        sweep_time = self.get_sweep_time()
+        sleep(int(sweep_time))
         return 'Sent: :TRIG:SING \nMeasuremet complete {}'.format(self.operation_complete())
 
     def trigger_averaging(self, averaging='?'):
@@ -285,29 +289,26 @@ class E5071C:
         self.format_data('ascii')
         return data
 
-    def trace_read(self, trace=''):
+    def read_single_trace(self, trace):
         self.format_data('real')
         data = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace))
         self.format_data('ascii')
 
         return data[0::2], data[1::2]
 
-    def read(self):
-        # TODO: test this method
+    def read_all_traces(self):
         # read the x axis and all traces of the active channel
-        self.trigger_now()
+        traces = int(self.traces_number())
+        points = int(self.points())
+
+        data = np.empty((2*traces+1, points))
+
         self.format_data('real')
-
-        vectors = self.traces_number()
-        points =self.points()
-
-        data = np.empty((2*vectors+1, points))
-
         data[0] = self._com_binary(':CALC:SEL:DATA:XAXis?')
-        for trace in range(self.traces_number()):
-            y1, y2 = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace+1))
-            data[2*trace + 1] = y1
-            data[2*trace + 2] = y2
+        for trace in range(traces):
+            raw_data = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace+1))
+            data[2*trace + 1] = raw_data[0::2]
+            data[2*trace + 2] = raw_data[1::2]
         self.format_data('ascii')
 
         return data
@@ -323,6 +324,9 @@ class E5071C:
 
     def operation_complete(self):
         return self._com("*OPC?")
+
+    def get_sweep_time(self):
+        return self._com("SENS:SWE:TIME?")
 
     ########################################
     # parameters
@@ -434,7 +438,7 @@ class E5071C:
     # send commands
     ##############################
     def _com(self, cmd):
-        if self._verbatim:
+        if self.verbatim:
             print(cmd)
         if cmd[-1] == '?':
             value = self._inst.query(cmd)
@@ -447,7 +451,7 @@ class E5071C:
             return "Sent: " + cmd
 
     def _com_binary(self, cmd):
-        if self._verbatim:
+        if self.verbatim:
             print(cmd)
         if cmd[-1] == '?':
             return self._inst.query_binary_values(cmd, datatype='d', is_big_endian=True)
@@ -458,59 +462,73 @@ class E5071C:
 
 
 if __name__ == "__main__":
+
     ################
     # Create object/Connect to device.
     ################
     rm = visa.ResourceManager('@py')
-    addr = '192.168.0.117'
+    ip = '192.168.0.204'
+    addr = 'TCPIP::{}::INSTR'.format(ip)
     vna = E5071C(addr)
-    ################
-    # Set up parameters related to frequency scan.
-    ################
-    vna.freq_start(1)
-    vna.freq_stop(2)
-    vna.points(1001)
-    vna.bandwidth(1000)
-    vna.sweep_type('lin')
-    ################
-    # Set up trace related commands. Channel related commands are similar.
-    ################
-    vna.traces_number(3)
-    vna.active_trace(1)
-    vna.Spar('S12')
-    print(vna.Format('mlog'))
-    vna.delay(1)
-    vna.phase_offset(180)
-    print(vna.active_trace(2))
-    vna.Spar('S12')
-    vna.delay(1)
-    vna.phase_offset(180)
-    print(vna.Format('phase'))
-    print(vna.active_trace(3))
-    vna.Spar('S12')
-    vna.delay(1)
-    vna.phase_offset(180)
-    print(vna.Format('Plog'))
-    ################
-    # Set up averaging parameters. Don't forget to set the "vna.trigger_averaging(True)" when using averaging
-    ################
-    print(vna.average_state(False))
-    print(vna.average_count(0))
-    ################
-    # Set up averaging parameters.
-    ################
-    print(vna.trigger_source('bus'))
-    print(vna.trigger_averaging(0))
-    print(vna.trigger_initiate(True))
-    print(vna.trigger_now())
-    ################
-    # Read the data on the screen
-    ################
-    print(vna.freq_read())
-    print(vna.trace_read(1)[0])
-    print(vna.trace_read(2)[0])
-    data = vna.trace_read(3)
-    print(data[0])
-    print(data[1])
-    data = vna.read()  # This command gets values for x axis and the primary and secondary data for all the traces.
+
+    # vna.set_freq_axis(start=1, stop=20, point=10001, bandwidth=1000, sweep_type='lin')
+    # vna.set_set_response_axes(trace_formates=['mlog', 'phase'], delay=1, phase_offset=180, Spar='S12')
+    # vna.set_averaging(state='off', count=0)
+    vna.set_trigger(source='bus', averaging=0, initiate=True)
+
+    vna.trigger_initiate(True)
+    # vna.trigger_now()
+    data = vna.read()
+    data = pd.DataFrame(data).T
+    data.to_csv('loop_antenna_out.csv', index=False)
+
+    # ################
+    # # Set up parameters related to frequency scan.
+    # ################
+    # vna.freq_start(1)
+    # vna.freq_stop(2)
+    # vna.points(1001)
+    # vna.bandwidth(1000)
+    # vna.sweep_type('lin')
+    # ################
+    # # Set up trace related commands. Channel related commands are similar.
+    # ################
+    # vna.traces_number(3)
+    # vna.active_trace(1)
+    # vna.Spar('S12')
+    # print(vna.Format('mlog'))
+    # vna.delay(1)
+    # vna.phase_offset(180)
+    # print(vna.active_trace(2))
+    # vna.Spar('S12')
+    # vna.delay(1)
+    # vna.phase_offset(180)
+    # print(vna.Format('phase'))
+    # print(vna.active_trace(3))
+    # vna.Spar('S12')
+    # vna.delay(1)
+    # vna.phase_offset(180)
+    # print(vna.Format('Plog'))
+    # ################
+    # # Set up averaging parameters. Don't forget to set the "vna.trigger_averaging(True)" when using averaging
+    # ################
+    # print(vna.average_state(False))
+    # print(vna.average_count(0))
+    # ################
+    # # Set up averaging parameters.
+    # ################
+    # print(vna.trigger_source('bus'))
+    # print(vna.trigger_averaging(0))
+    # print(vna.trigger_initiate(True))
+    # print(vna.trigger_now())
+    # ################
+    # # Read the data on the screen
+    # ################
+    # print(vna.freq_read())
+    # print(vna.trace_read(1)[0])
+    # print(vna.trace_read(2)[0])
+    # data = vna.trace_read(3)
+    # print(data[0])
+    # print(data[1])
+    # data = vna.read()  # This command gets values for x axis and the primary and secondary data for all the traces.
 
