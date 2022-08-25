@@ -283,7 +283,7 @@ class E5071C:
         form = form.lower()
         return self._com(':FORMat:DATA{}'.format(formats[form]))
 
-    def freq_read(self):
+    def read_freq(self):
         self.format_data('real')
         data = self._com_binary(':CALC:SEL:DATA:XAXis?')
         self.format_data('ascii')
@@ -477,8 +477,9 @@ if __name__ == "__main__":
     vna.set_trigger(source='bus', averaging=0, initiate=True)
 
     vna.trigger_initiate(True)
-    # vna.trigger_now()
-    data = vna.read()
+    vna.trigger_now()
+    data = vna.read_all_traces()
+
     data = pd.DataFrame(data).T
     data.to_csv('loop_antenna_out.csv', index=False)
 
