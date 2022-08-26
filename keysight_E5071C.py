@@ -313,9 +313,6 @@ class E5071C:
 
         return data
 
-    def close(self):
-        self._inst.close()
-
     def identify(self):
         return self._com("*IDN?")
 
@@ -469,6 +466,7 @@ if __name__ == "__main__":
     rm = visa.ResourceManager('@py')
     ip = '192.168.0.204'
     addr = 'TCPIP::{}::INSTR'.format(ip)
+    addr = "TCPIP0"
     vna = E5071C(addr)
 
     # vna.set_freq_axis(start=1, stop=20, point=10001, bandwidth=1000, sweep_type='lin')
