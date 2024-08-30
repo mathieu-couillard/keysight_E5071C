@@ -11,6 +11,7 @@ class E5071C:
         self._active_trace = 1
         self.verbatim = verbatim  # Print every command before sending
 
+        self._inst.read_termination = '\n'
     ########################################
     # Selecting channel and trace
     ########################################
@@ -61,6 +62,8 @@ class E5071C:
     def average_count(self, count='?', chan=""):
         if chan == "":
             chan = self._active_chan
+        if count != '?':
+            count = " " + str(count)
         return self._com(":SENS{}:AVER:COUN{}".format(chan, count))
 
     def average_state(self, state="?", chan=""):
@@ -252,9 +255,14 @@ class E5071C:
             Exception('InvalidTriggerStateException')
 
     def trigger_now(self):
+        if self.average_state() == 1:
+            average_count = self.average_count()
+        else:
+            avearge_count = 1
+            
         self._com(":TRIG:SING")
         sweep_time = self.get_sweep_time()
-        sleep(int(sweep_time))
+        sleep(int(average_count * sweep_time))
         return 'Sent: :TRIG:SING \nMeasuremet complete {}'.format(self.operation_complete())
 
     def trigger_averaging(self, averaging='?'):
@@ -464,22 +472,21 @@ if __name__ == "__main__":
     # Create object/Connect to device.
     ################
     rm = visa.ResourceManager('@py')
-    ip = '192.168.0.204'
+    ip = '192.168.0.100'
     addr = 'TCPIP::{}::INSTR'.format(ip)
-    addr = "TCPIP0"
+    # addr = "TCPIP0"
     vna = E5071C(addr)
 
     # vna.set_freq_axis(start=1, stop=20, point=10001, bandwidth=1000, sweep_type='lin')
     # vna.set_set_response_axes(trace_formates=['mlog', 'phase'], delay=1, phase_offset=180, Spar='S12')
-    # vna.set_averaging(state='off', count=0)
-    vna.set_trigger(source='bus', averaging=0, initiate=True)
-
-    vna.trigger_initiate(True)
+    #vna.set_averaging(state='on', count=2)
+    vna.set_trigger(source='bus', averaging=1, initiate=True)
+    
     vna.trigger_now()
     data = vna.read_all_traces()
 
     data = pd.DataFrame(data).T
-    data.to_csv('loop_antenna_out.csv', index=False)
+    data.to_csv('cavity-sna-test.csv', index=False)
 
     # ################
     # # Set up parameters related to frequency scan.
