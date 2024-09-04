@@ -107,7 +107,7 @@ class E5071C:
             chan = self._active_chan
         if type(freq) != str:
             freq = " " + str(freq*1e9)
-        return self._com(":SENS{}:FREQ:SPAN".format(chan, freq))
+        return self._com(":SENS{}:FREQ:SPAN{}".format(chan, freq))
 
     def points(self, points='?', chan=""):
         if chan == "":
