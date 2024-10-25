@@ -1,12 +1,25 @@
+"""
+June 2022
+@author: Mathieu Couillard
+
+Driver for ENA E5071C
+"""
+
 import numpy as np
-import pandas as pd
 import pyvisa as visa
+
 from time import sleep
 
 
 class E5071C:
     def __init__(self, address, configs="", verbatim=False):
         self._inst = visa.ResourceManager('@py').open_resource(address)
+        identity = self.identify()
+        print("Identity: {}".format(identity))
+        if "E5071C" not in identity:
+            Exception("WARNING: This IP:{} is not a E5071C vector network analyzer."
+                      "\nSome commands may not work.".format(address))
+
         self._active_chan = 1
         self._active_trace = 1
         self.verbatim = verbatim  # Print every command before sending
@@ -65,9 +78,9 @@ class E5071C:
 
     def average_state(self, state="?", chan=""):
         options = {'on': " on", '1': ' 1', 'true': ' on',
-                  'off': ' off', '0': ' 0', 'false': ' 0',
-                  '?': '?'
-                  }
+                   'off': ' off', '0': ' 0', 'false': ' 0',
+                   '?': '?'
+                   }
         if chan == "":
             chan = self._active_chan
         state = str(state).lower()
@@ -75,6 +88,7 @@ class E5071C:
             return self._com(":SENS{}:AVER:STAT{}".format(chan, options[state]))
         else:
             Exception('InvalidStateError: valid states are {}'.format(options.keys()))
+
     ########################################
     # Frequency axis
     ########################################
@@ -82,29 +96,29 @@ class E5071C:
         if chan == "":
             chan = self._active_chan
         if type(freq) != str:
-            freq = " " + str(freq*1e9)
+            freq = " " + str(freq * 1e9)
         return self._com(":SENS{}:FREQ:STAR{}".format(chan, freq))
 
     def freq_stop(self, freq, chan=""):
         if chan == "":
             chan = self._active_chan
         if type(freq) != str:
-            freq = " " + str(freq*1e9)
+            freq = " " + str(freq * 1e9)
         return self._com(":SENS{}:FREQ:STOP{}".format(chan, freq))
 
     def freq_center(self, freq='?', chan=""):
         if chan == "":
             chan = self._active_chan
         if type(freq) != str:
-            freq = " " + str(freq*1e9)
+            freq = " " + str(freq * 1e9)
         return self._com(":SENS{}:FREQ:CENT{}".format(chan, freq))
 
     def freq_span(self, freq='?', chan=""):
         if chan == "":
             chan = self._active_chan
         if type(freq) != str:
-            freq = " " + str(freq*1e9)
-        return self._com(":SENS{}:FREQ:SPAN".format(chan, freq))
+            freq = " " + str(freq * 1e9)
+        return self._com(":SENS{}:FREQ:SPAN{}".format(chan, freq))
 
     def points(self, points='?', chan=""):
         if chan == "":
@@ -131,25 +145,25 @@ class E5071C:
         if chan == "":
             chan = self._active_chan
         trace_formats = {'mlog': ' MLOG',
-                   'phase': ' PHAS',
-                   'lin_mag': ' MLIN',
-                   'real': ' REAL',
-                   'imag': " IMAG",
-                   'extend_phase': ' UPH',
-                   'uph': ' uph',
-                   'positive_phase': ' PPH',
-                   'pph': ' PHH',
-                   'polar_linear': ' PLIN',
-                   'plin': ' PLIN',
-                   'polar_log': ' PLOG',
-                   'plog': ' PLOG',
-                   'real_imag': ' POL',
-                   '?': '?'}
+                         'phase': ' PHAS',
+                         'lin_mag': ' MLIN',
+                         'real': ' REAL',
+                         'imag': " IMAG",
+                         'extend_phase': ' UPH',
+                         'uph': ' uph',
+                         'positive_phase': ' PPH',
+                         'pph': ' PHH',
+                         'polar_linear': ' PLIN',
+                         'plin': ' PLIN',
+                         'polar_log': ' PLOG',
+                         'plog': ' PLOG',
+                         'real_imag': ' POL',
+                         '?': '?'}
         trace_format = trace_formats.lower()
         if trace_format in trace_formats:
             return self._com(':CALC{}:SEL:FORM{}'.format(chan, trace_formats[trace_format]))
         else:
-            raise Exception("InvalidFormatError. valid strings are {}".format(trace_formats.keys()))
+            raise Exception("InvalidFormatError. valid strings are {}".format(trace_format.keys()))
 
     ########################################
     # Output
@@ -207,8 +221,8 @@ class E5071C:
         else:
             raise Exception("InvalidSweepType: Valid sweep types are {}".format(sweep_types.keys()))
 
-    def Spar(self, Spar='?', trace="", chan=""):
-        Spar = Spar.upper()
+    def s_par(self, s_par='?', trace="", chan=""):
+        s_par = s_par.upper()
         if trace == "":
             trace = self._active_trace
         if chan == "":
@@ -219,8 +233,8 @@ class E5071C:
                    'S41': ' S41', 'S42': ' S42', 'S43': ' S43', 'S44': ' S44',
                    '?': '?'
                    }
-        if Spar in options:
-            return self._com(':CALC{}:PAR{}:DEF{}'.format(chan, trace, options[Spar]))
+        if s_par in options:
+            return self._com(':CALC{}:PAR{}:DEF{}'.format(chan, trace, options[s_par]))
 
     ########################################
     # Trigger
@@ -252,10 +266,17 @@ class E5071C:
             Exception('InvalidTriggerStateException')
 
     def trigger_now(self):
+
+        if self.average_state() == 1:
+            average_count = self.average_count()
+        else:
+            average_count = 1
+            
         self._com(":TRIG:SING")
-        sweep_time = self.get_sweep_time()
-        sleep(int(sweep_time))
+        sweep_time = float(self.get_sweep_time())
+        sleep(int(average_count) * sweep_time)
         return 'Sent: :TRIG:SING \nMeasuremet complete {}'.format(self.operation_complete())
+
 
     def trigger_averaging(self, averaging='?'):
         options = {"on": " ON", "1": " 1", "true": " 1",
@@ -267,7 +288,6 @@ class E5071C:
             return self._com(":TRIG:SEQ:AVER{}".format(options[averaging]))
         else:
             raise Exception("InvalidTriggerAveragingArgument")
-
 
     ########################################
     # reading data
@@ -283,13 +303,13 @@ class E5071C:
         form = form.lower()
         return self._com(':FORMat:DATA{}'.format(formats[form]))
 
-    def read_freq(self):
+    def freq_read(self):
         self.format_data('real')
         data = self._com_binary(':CALC:SEL:DATA:XAXis?')
         self.format_data('ascii')
         return data
 
-    def read_single_trace(self, trace):
+    def trace_read(self, trace=''):
         self.format_data('real')
         data = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace))
         self.format_data('ascii')
@@ -297,21 +317,27 @@ class E5071C:
         return data[0::2], data[1::2]
 
     def read_all_traces(self):
+        # TODO: test this method
         # read the x axis and all traces of the active channel
-        traces = int(self.traces_number())
-        points = int(self.points())
-
-        data = np.empty((2*traces+1, points))
-
+        self.trigger_now()
         self.format_data('real')
+
+        vectors = self.traces_number()
+        points = self.points()
+
+        data = np.empty((2 * vectors + 1, points))
+
         data[0] = self._com_binary(':CALC:SEL:DATA:XAXis?')
-        for trace in range(traces):
-            raw_data = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace+1))
-            data[2*trace + 1] = raw_data[0::2]
-            data[2*trace + 2] = raw_data[1::2]
+        for trace in range(self.traces_number()):
+            y1, y2 = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace + 1))
+            data[2 * trace + 1] = y1
+            data[2 * trace + 2] = y2
         self.format_data('ascii')
 
         return data
+
+    def close(self):
+        self._inst.close()
 
     def identify(self):
         return self._com("*IDN?")
@@ -325,6 +351,7 @@ class E5071C:
     def get_sweep_time(self):
         return self._com("SENS:SWE:TIME?")
 
+    
     ########################################
     # parameters
     ########################################
@@ -351,22 +378,20 @@ class E5071C:
         self.bandwidth(bandwidth)
         self.sweep_type(sweep_type)
 
-    def set_response_axes(self, trace_formats, delay, phase_offset, Spar='S12'):
+    def set_response_axes(self, trace_formats, delay, phase_offset, s_par='S12'):
         if type(trace_formats) == str:
             trace_formats = [trace_formats]
-        if Spar == str:
-            Spar = [Spar] * len(trace_formats)
+        if s_par == str:
+            s_par = [s_par] * len(trace_formats)
         self.delay(delay)
         self.phase_offset(phase_offset)
         self.traces_number(len(trace_formats))
         for i, trace_format in enumerate(trace_formats):
-            self.active_trace(i+1)
-            self.Spar(Spar)
-            self.Format(trace_format)
-
+            self.active_trace(i + 1)
+            self.s_par(s_par)
+            self.format_trace(trace_format)
 
     def get_parameters(self, chan=""):
-        # TODO: test this and use this function to save to config
         if chan == "":
             chan = self._active_chan
         else:
@@ -374,33 +399,19 @@ class E5071C:
 
         total_traces = self.traces_number(chan)
 
-        freq_start = self.freq_start()
-        freq_stop = self.freq_stop()
-        freq_center = (freq_stop + freq_start) / 2
-        freq_span = freq_stop - freq_start
-        points = self.freq_npoints()
-        bandwidth = self.IFBW()
-        Spar = self.Spar()
-        Format = self.Format()
-        power = self.power()
-        average_count = self.average_count()
-        average_state = self.average_state()
-        delay = self.delay()
-        phase_offset = self.phase_offset()
-
-        parameters = {'freq_start': freq_start,
-                      'freq_stop': freq_stop,
-                      'freq_center': freq_center,
-                      'freq_span': freq_span,
-                      'points': points,
-                      'IFBW': bandwidth,
-                      'Format': Format,  # get this for each channel
-                      'Spar': Spar, # get this for each channel
-                      'power': power,
-                      'average_count': average_count,
-                      'average_state': average_state,
-                      'delay': delay,
-                      'phase_offset': phase_offset
+        parameters = {'freq_start': self.freq_start(),
+                      'freq_stop': self.freq_stop(),
+                      'freq_center': self.freq_center(),
+                      'freq_span': self.freq_span(),
+                      'points': self.points(),
+                      'bandwidth': self.bandwidth(),
+                      'format_trace': self.format_trace(),  # get this for each channel
+                      's_par': self.s_par(),  # get this for each channel
+                      'power': self.power,
+                      'average_count': self.average_count(),
+                      'average_state': self.average_state(),
+                      'delay': self.delay(),
+                      'phase_offset': self.phase_offset()
                       }
         return parameters
 
@@ -413,9 +424,9 @@ class E5071C:
                       'freq_center': self.freq_center,
                       'freq_span': self.freq_span,
                       'points': self.points,
-                      'IFBW': self.bandwidth,
-                      'Format': self.format_meas,  # set this for each channel
-                      'Spar': self.Spar,  # set this for each channel
+                      'bandwidth': self.bandwidth,
+                      'format_trace': self.format_trace,  # set this for each channel
+                      's_par': self.s_par,  # set this for each channel
                       'power': self.power,
                       'average_count': self.average_count,
                       'average_state': self.average_state,
@@ -430,7 +441,6 @@ class E5071C:
             except KeyError:
                 pass
 
-
     ##############################
     # send commands
     ##############################
@@ -439,10 +449,14 @@ class E5071C:
             print(cmd)
         if cmd[-1] == '?':
             value = self._inst.query(cmd)
-            try:
+            if value.isnumeric():
                 return float(value)
-            except:
+            else:
                 return value
+            # try:
+            #     return float(value)
+            # except:
+            #     return value
         else:
             self._inst.write(cmd)
             return "Sent: " + cmd
@@ -459,75 +473,58 @@ class E5071C:
 
 
 if __name__ == "__main__":
-
     ################
     # Create object/Connect to device.
     ################
     rm = visa.ResourceManager('@py')
-    ip = '192.168.0.204'
-    addr = 'TCPIP::{}::INSTR'.format(ip)
-    addr = "TCPIP0"
-    vna = E5071C(addr)
-
-    # vna.set_freq_axis(start=1, stop=20, point=10001, bandwidth=1000, sweep_type='lin')
-    # vna.set_set_response_axes(trace_formates=['mlog', 'phase'], delay=1, phase_offset=180, Spar='S12')
-    # vna.set_averaging(state='off', count=0)
-    vna.set_trigger(source='bus', averaging=0, initiate=True)
-
-    vna.trigger_initiate(True)
-    vna.trigger_now()
-    data = vna.read_all_traces()
-
-    data = pd.DataFrame(data).T
-    data.to_csv('loop_antenna_out.csv', index=False)
-
-    # ################
-    # # Set up parameters related to frequency scan.
-    # ################
-    # vna.freq_start(1)
-    # vna.freq_stop(2)
-    # vna.points(1001)
-    # vna.bandwidth(1000)
-    # vna.sweep_type('lin')
-    # ################
-    # # Set up trace related commands. Channel related commands are similar.
-    # ################
-    # vna.traces_number(3)
-    # vna.active_trace(1)
-    # vna.Spar('S12')
-    # print(vna.Format('mlog'))
-    # vna.delay(1)
-    # vna.phase_offset(180)
-    # print(vna.active_trace(2))
-    # vna.Spar('S12')
-    # vna.delay(1)
-    # vna.phase_offset(180)
-    # print(vna.Format('phase'))
-    # print(vna.active_trace(3))
-    # vna.Spar('S12')
-    # vna.delay(1)
-    # vna.phase_offset(180)
-    # print(vna.Format('Plog'))
-    # ################
-    # # Set up averaging parameters. Don't forget to set the "vna.trigger_averaging(True)" when using averaging
-    # ################
-    # print(vna.average_state(False))
-    # print(vna.average_count(0))
-    # ################
-    # # Set up averaging parameters.
-    # ################
-    # print(vna.trigger_source('bus'))
-    # print(vna.trigger_averaging(0))
-    # print(vna.trigger_initiate(True))
-    # print(vna.trigger_now())
-    # ################
-    # # Read the data on the screen
-    # ################
-    # print(vna.freq_read())
-    # print(vna.trace_read(1)[0])
-    # print(vna.trace_read(2)[0])
-    # data = vna.trace_read(3)
-    # print(data[0])
-    # print(data[1])
-    # data = vna.read()  # This command gets values for x axis and the primary and secondary data for all the traces.
-
+    ip = '192.168.0.117'
+    vna = E5071C("TCPIP::{}::INSTR".format(ip))
+    ################
+    # Set up parameters related to frequency scan.
+    ################
+    vna.freq_start(1)
+    vna.freq_stop(2)
+    vna.points(1001)
+    vna.bandwidth(1000)
+    vna.sweep_type('lin')
+    ################
+    # Set up trace related commands. Channel related commands are similar.
+    ################
+    vna.traces_number(3)
+    vna.active_trace(1)
+    vna.s_par('S12')
+    print(vna.format_trace('mlog'))
+    vna.delay(1)
+    vna.phase_offset(180)
+    print(vna.active_trace(2))
+    vna.s_par('S12')
+    vna.delay(1)
+    vna.phase_offset(180)
+    print(vna.format_trace('phase'))
+    print(vna.active_trace(3))
+    vna.s_par('S12')
+    vna.delay(1)
+    vna.phase_offset(180)
+    print(vna.format_trace('Plog'))
+    ################
+    # Set up averaging parameters. Don't forget to set the "vna.trigger_averaging(True)" when using averaging
+    ################
+    print(vna.average_state(False))
+    print(vna.average_count(0))
+    ################
+    # Set up averaging parameters.
+    ################
+    print(vna.trigger_source('bus'))
+    print(vna.trigger_averaging(0))
+    print(vna.trigger_initiate(True))
+    print(vna.trigger_now())
+    ################
+    # Read the data on the screen
+    ################
+    print(vna.freq_read())
+    print(vna.trace_read(1)[0])
+    print(vna.trace_read(2)[0])
+    data = vna.trace_read(3)
+    print(data[0])
+    print(data[1])
+    data = vna.read_all_traces()  # This command gets values for x axis and the primary and secondary data for all the traces.
