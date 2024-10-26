@@ -14,6 +14,7 @@ from time import sleep
 class E5071C:
     def __init__(self, address, configs="", verbatim=False):
         self._inst = visa.ResourceManager('@py').open_resource(address)
+        self.verbatim = verbatim
         identity = self.identify()
         print("Identity: {}".format(identity))
         if "E5071C" not in identity:
@@ -72,8 +73,8 @@ class E5071C:
         return self._com(":SENS{}:AVER:CLE".format(chan))
 
     def average_count(self, count='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
+        if count != '?':
+            count = ' ' + str(count)
         return self._com(":SENS{}:AVER:COUN{}".format(chan, count))
 
     def average_state(self, state="?", chan=""):
@@ -127,7 +128,7 @@ class E5071C:
             points = " " + str(points)
         return self._com(":SENS{}:SWE:POIN{}".format(chan, points))
 
-    def IFBW(self, bandwidth='?', chan=""):
+    def ifbw(self, bandwidth='?', chan=""):
         if chan == "":
             chan = self._active_chan
         if type(bandwidth) != str:
@@ -135,7 +136,7 @@ class E5071C:
         return self._com(":SENS{}:BAND:RES{}".format(chan, bandwidth))
 
     def bandwidth(self, bandwidth='?', chan=""):
-        return self.IFBW(bandwidth, chan)
+        return self.ifbw(bandwidth, chan)
 
     ########################################
     # Response
@@ -180,15 +181,13 @@ class E5071C:
         if phase != "?":
             phase = " " + str(phase)
         if chan == "":
-            chan = self.active_chan()
+            chan = ''
         return self._com(":CALC{}:CORR:OFFS:PHAS{}".format(chan, phase))
 
-    def power(self, source="", power='?'):
-        if source != "":
-            source = self._active_chan
+    def power(self, power='?', source=''):
         if power != '?':
             power = " " + str(power)
-        return self._com(':SOUR{}:POW:LEV:IMM:AMPL{}'.format(source, power))
+        return self._com(':SOUR{}:POW{}'.format(source, power))
 
     def output(self, out='?'):
         options = {'true': ' 1',
@@ -303,13 +302,15 @@ class E5071C:
         form = form.lower()
         return self._com(':FORMat:DATA{}'.format(formats[form]))
 
-    def freq_read(self):
+    def read_freq(self):
         self.format_data('real')
         data = self._com_binary(':CALC:SEL:DATA:XAXis?')
         self.format_data('ascii')
         return data
 
-    def trace_read(self, trace=''):
+    def read_trace(self, trace=None):
+        if trace==None:
+            trace = '?'
         self.format_data('real')
         data = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace))
         self.format_data('ascii')
@@ -328,7 +329,7 @@ class E5071C:
         data = np.empty((2 * vectors + 1, points))
 
         data[0] = self._com_binary(':CALC:SEL:DATA:XAXis?')
-        for trace in range(self.traces_number()):
+        for trace in range(int(self.traces_number())):
             y1, y2 = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace + 1))
             data[2 * trace + 1] = y1
             data[2 * trace + 2] = y2
