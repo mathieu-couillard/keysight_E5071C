@@ -11,6 +11,20 @@ import pyvisa as visa
 from time import sleep
 
 
+def get_or_set_num(arg) -> str:
+    if arg == None or '?':
+        return '?'
+    else:
+        return ' ' + str(arg)
+
+def get_or_set_dict(arg, arg_dict) -> str:
+    arg = str(arg).lower()
+    try:
+        return arg_dict[arg]
+    except:
+        print("InvalidInputError: Argument must be : {}".format(", ".join(list(arg_dict.keys()))))
+        return '?' # FIXME: There should be a better way to handle this error with querying the device.
+
 class E5071C:
     def __init__(self, address, configs="", verbatim=False):
         self._inst = visa.ResourceManager('@py').open_resource(address)
@@ -21,22 +35,17 @@ class E5071C:
             Exception("WARNING: This IP:{} is not a E5071C vector network analyzer."
                       "\nSome commands may not work.".format(address))
 
-        self._active_chan = 1
-        self._active_trace = 1
         self.verbatim = verbatim  # Print every command before sending
 
     ########################################
     # Selecting channel and trace
     ########################################
-    def traces_number(self, num='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
+    def traces_number(self, num=None, chan=""):
         if num != '?':
             num = " " + str(num)
         return self._com(":CALC{}:PAR:COUN{}".format(chan, num))
 
     def displayed_channels(self, chans='?'):
-        chans = str(chans)
         options = {'1': ' D1',
                    '12': ' D1_2',
                    '13': ' D1_3',
@@ -45,151 +54,113 @@ class E5071C:
                    '123456': ' D1_2_3_4_5_6',
                    '?': '?'
                    }
-        if chans in options:
-            return self._com(":DISP:SPL{}".format(options[chans]))
-        else:
-            raise Exception("InvalidDisplaySettingException")
+        chans = get_or_set_dict(chans, options)
+        return self._com(":DISP:SPL{}".format(chans))
 
-    def active_chan(self, chan):
-        return self._com(":DISP:WIND{}:ACT".format(chan))
-
-    def active_trace(self, trace="?", chan=""):
-        if chan == "":
-            chan = self._active_chan
+    def active_chan(self, chan=None):
+        chan = get_or_set_num(chan)
+        if chan == '?':
+            return self._com(':SERV:CHAN:ACT?')
         else:
-            self._active_chan = chan
+            return self._com(":DISP:WIND{}:ACT".format(chan))
+
+    def active_trace(self, trace=None, chan=""):
+        trace = get_or_set_num(trace)
         if trace == '?':
             return self._com(":SERV:CHAN{}:TRAC:ACT?".format(chan))
-
-        return self._com(':CALC{}:PAR{}:SEL'.format(chan, trace))
+        else:
+            return self._com(':CALC{}:PAR{}:SEL'.format(chan, trace))
 
     ########################################
     # Averaging
     ########################################
 
     def average_reset(self, chan=""):
-        if chan == "":
-            chan = self._active_chan
         return self._com(":SENS{}:AVER:CLE".format(chan))
 
-    def average_count(self, count='?', chan=""):
-        if count != '?':
-            count = ' ' + str(count)
+    def average_count(self, count=None, chan=""):
+        count = get_or_set_num(count)
         return self._com(":SENS{}:AVER:COUN{}".format(chan, count))
 
-    def average_state(self, state="?", chan=""):
+    def average_state(self, state=None, chan=""):
         options = {'on': " on", '1': ' 1', 'true': ' on',
                    'off': ' off', '0': ' 0', 'false': ' 0',
                    '?': '?'
                    }
-        if chan == "":
-            chan = self._active_chan
-        state = str(state).lower()
-        if state in options:
-            return self._com(":SENS{}:AVER:STAT{}".format(chan, options[state]))
-        else:
-            Exception('InvalidStateError: valid states are {}'.format(options.keys()))
+        state = get_or_set_dict(state, options)
+        return self._com(":SENS{}:AVER:STAT{}".format(chan, options[state]))
 
     ########################################
     # Frequency axis
     ########################################
-    def freq_start(self, freq='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
-        if type(freq) != str:
-            freq = " " + str(freq * 1e9)
-        return self._com(":SENS{}:FREQ:STAR{}".format(chan, freq))
+    # TODO: Make argument to choose units from a dictionary and make the default GHz
+    def freq_start(self, freq=None, chan=""):
+        freq = get_or_set_num(freq) 
+        return self._com(":SENS{}:FREQ:STAR{}E9".format(chan, freq))
 
-    def freq_stop(self, freq, chan=""):
-        if chan == "":
-            chan = self._active_chan
-        if type(freq) != str:
-            freq = " " + str(freq * 1e9)
-        return self._com(":SENS{}:FREQ:STOP{}".format(chan, freq))
+    def freq_stop(self, freq=None, chan=""):
+        freq = get_or_set_num(freq)
+        return self._com(":SENS{}:FREQ:STOP{}E9".format(chan, freq))
 
-    def freq_center(self, freq='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
-        if type(freq) != str:
-            freq = " " + str(freq * 1e9)
-        return self._com(":SENS{}:FREQ:CENT{}".format(chan, freq))
+    def freq_center(self, freq=None, chan=""):
+        freq = get_or_set_num(freq)
+        return self._com(":SENS{}:FREQ:CENT{}E9".format(chan, freq))
 
-    def freq_span(self, freq='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
-        if type(freq) != str:
-            freq = " " + str(freq * 1e9)
-        return self._com(":SENS{}:FREQ:SPAN{}".format(chan, freq))
+    def freq_span(self, freq=None, chan=""):
+        freq = get_or_set_num(freq)
+        return self._com(":SENS{}:FREQ:SPAN{}E9".format(chan, freq))
 
-    def points(self, points='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
-        if type(points) != str:
-            points = " " + str(points)
+    def points(self, points=None, chan=""):
+        points = get_or_set_num(points) 
         return self._com(":SENS{}:SWE:POIN{}".format(chan, points))
 
-    def ifbw(self, bandwidth='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
-        if type(bandwidth) != str:
-            bandwidth = " " + str(bandwidth)
+    def ifbw(self, bandwidth=None, chan=""):
+        bandwidth = get_or_set_num(bandwidth)
         return self._com(":SENS{}:BAND:RES{}".format(chan, bandwidth))
 
-    def bandwidth(self, bandwidth='?', chan=""):
+    def bandwidth(self, bandwidth=None, chan=""):
         return self.ifbw(bandwidth, chan)
 
     ########################################
     # Response
     ########################################
-
-    def format_trace(self, trace_format='?', chan=""):
-        if chan == "":
-            chan = self._active_chan
+    
+    def format_trace(self, trace_format=None, chan=""):
         trace_formats = {'mlog': ' MLOG',
                          'phase': ' PHAS',
                          'lin_mag': ' MLIN',
                          'real': ' REAL',
                          'imag': " IMAG",
                          'extend_phase': ' UPH',
-                         'uph': ' uph',
+                         'uph': ' UPH',
                          'positive_phase': ' PPH',
-                         'pph': ' PHH',
+                         'pph': ' PPH',
                          'polar_linear': ' PLIN',
                          'plin': ' PLIN',
                          'polar_log': ' PLOG',
                          'plog': ' PLOG',
                          'real_imag': ' POL',
                          '?': '?'}
-        trace_format = trace_formats.lower()
-        if trace_format in trace_formats:
-            return self._com(':CALC{}:SEL:FORM{}'.format(chan, trace_formats[trace_format]))
-        else:
-            raise Exception("InvalidFormatError. valid strings are {}".format(trace_format.keys()))
+        trace_format = get_or_set_dict(trace_format,trace_formats)
+        return self.average_count(':CALC{}:SEL:FORM{}'.format(chan, trace_format))
 
     ########################################
     # Output
     ########################################
 
-    def delay(self, delay="?", chan=""):
-        if delay != '?':
-            delay = " " + str(delay)
-        if chan == "":
-            chan = self._active_chan
+    def delay(self, delay=None, chan=""):
+        delay = get_or_set_num(delay)
         return self._com(":CALC{}:CORR:EDEL:TIME{}".format(chan, delay))
 
-    def phase_offset(self, phase="?", chan=""):
-        if phase != "?":
-            phase = " " + str(phase)
-        if chan == "":
-            chan = ''
+    def phase_offset(self, phase=None, chan=""):
+        phase = get_or_set_num(phase)
         return self._com(":CALC{}:CORR:OFFS:PHAS{}".format(chan, phase))
 
-    def power(self, power='?', source=''):
-        if power != '?':
-            power = " " + str(power)
+    def power(self, power=None, source=''):
+        power = get_or_set_num(power)
         return self._com(':SOUR{}:POW{}'.format(source, power))
 
-    def output(self, out='?'):
+    def output(self, out=None):
         options = {'true': ' 1',
                    'on': ' 1',
                    '1': ' 1',
@@ -198,12 +169,10 @@ class E5071C:
                    '0': ' 0',
                    '?': '?'
                    }
-        if str(out).lower() in options:
-            return self._com(":OUTP{}".format(options[str(out).lower()]))
-        else:
-            raise Exception('InvalideOutputOption')
+        out = get_or_set_dict(out, options)
+        return self._com(":OUTP{}".format(out))
 
-    def sweep_type(self, sweep_type='?', chan=""):
+    def sweep_type(self, sweep_type=None, chan=""):
         sweep_types = {'linear': ' LIN',
                        'lin': ' LIN',
                        'log': ' LOG',
@@ -211,61 +180,42 @@ class E5071C:
                        'power': ' POW',
                        '?': ' ?'
                        }
-        if chan == "":
-            chan = self._active_chan
+        sweep_type = get_or_set_dict(sweep_type, sweep_types)
+        return self._com(':SENS{}:SWE:TYPE{}'.format(chan, sweep_type))
 
-        sweep_type = sweep_type.lower()
-        if sweep_type in sweep_types:
-            return self._com(':SENS{}:SWE:TYPE{}'.format(chan, sweep_types[sweep_type]))
-        else:
-            raise Exception("InvalidSweepType: Valid sweep types are {}".format(sweep_types.keys()))
-
-    def s_par(self, s_par='?', trace="", chan=""):
-        s_par = s_par.upper()
-        if trace == "":
-            trace = self._active_trace
-        if chan == "":
-            chan = self._active_chan
-        options = {'S11': ' S11', 'S12': ' S12', 'S13': ' S13', 'S14': ' S14',
-                   'S21': ' S21', 'S22': ' S22', 'S23': ' S23', 'S24': ' S24',
-                   'S31': ' S31', 'S32': ' S32', 'S33': ' S33', 'S34': ' S34',
-                   'S41': ' S41', 'S42': ' S42', 'S43': ' S43', 'S44': ' S44',
+    def s_par(self, s_par=None, trace="", chan=""):
+        options = {'s11': ' S11', 's12': ' S12', 's13': ' S13', 's14': ' S14',
+                   's21': ' S21', 's22': ' S22', 's23': ' S23', 's24': ' S24',
+                   's31': ' S31', 's32': ' S32', 's33': ' S33', 's34': ' S34',
+                   's41': ' S41', 's42': ' S42', 's43': ' S43', 's44': ' S44',
                    '?': '?'
                    }
+        s_par = get_or_set_dict(s_par,options)
         if s_par in options:
-            return self._com(':CALC{}:PAR{}:DEF{}'.format(chan, trace, options[s_par]))
+            return self._com(':CALC{}:PAR{}:DEF{}'.format(chan, trace, s_par))
 
     ########################################
     # Trigger
     ########################################
-    def trigger_source(self, source='?'):
+    def trigger_source(self, source=None):
         sources = {"internal": " INT",
                    "external": " EXT",
                    "manual": " MAN",
                    "bus": " BUS",
                    "?": "?"
                    }
-        source = source.lower()
-        if source in sources:
-            return self._com(":TRIG:SOUR{}".format(sources[source]))
-        else:
-            raise Exception("InvalideTriggerSourceException")
+        source = get_or_set_dict(source, sources)
+        return self._com(":TRIG:SOUR{}".format(source))
 
-    def trigger_initiate(self, state='?', chan=""):
+    def trigger_initiate(self, state=None, chan=""):
         options = {"on": " ON", "1": " 1", "true": " 1",
                    "off": " OFF", "0": " 0", "false": " 0",
                    "?": "?"
                    }
-        if chan == "":
-            chan = self._active_chan
-        state = str(state).lower()
-        if state in options:
-            return self._com('INIT{}:CONT {}'.format(chan, options[state]))
-        else:
-            Exception('InvalidTriggerStateException')
+        state = get_or_set_dict(state, options)
+        return self._com('INIT{}:CONT {}'.format(chan, state))
 
     def trigger_now(self):
-
         if self.average_state() == 1:
             average_count = self.average_count()
         else:
@@ -277,30 +227,27 @@ class E5071C:
         return 'Sent: :TRIG:SING \nMeasuremet complete {}'.format(self.operation_complete())
 
 
-    def trigger_averaging(self, averaging='?'):
+    def trigger_averaging(self, averaging=None):
         options = {"on": " ON", "1": " 1", "true": " 1",
                    "off": " OFF", "0": " 0", "false": " 0",
                    "?": "?"
                    }
-        averaging = str(averaging).lower()
-        if averaging in options:
-            return self._com(":TRIG:SEQ:AVER{}".format(options[averaging]))
-        else:
-            raise Exception("InvalidTriggerAveragingArgument")
+        averaging = get_or_set_dict(averaging, options)
+        return self._com(":TRIG:SEQ:AVER{}".format(averaging))
 
     ########################################
     # reading data
     ########################################
 
-    def format_data(self, form='?'):
+    def format_data(self, form=None):
         formats = {'ascii': ' ASC',
                    'asc': ' ASC',
                    'real': ' REAL',
                    'real32': ' REAL32',
                    '?': '?'
                    }
-        form = form.lower()
-        return self._com(':FORMat:DATA{}'.format(formats[form]))
+        form = get_or_set_dict(form, formats)
+        return self._com(':FORMat:DATA{}'.format(form))
 
     def read_freq(self):
         self.format_data('real')
@@ -361,7 +308,8 @@ class E5071C:
         self.trigger_averaging(averaging)
         self.trigger_initiate(initiate)
 
-    def set_averaging(self, state='off', count=0):
+    def set_averaging(self, state=None, count=0):
+        state = str(state)
         self.average_state(state)
         self.average_count(count)
 
@@ -393,12 +341,8 @@ class E5071C:
             self.format_trace(trace_format)
 
     def get_parameters(self, chan=""):
-        if chan == "":
-            chan = self._active_chan
-        else:
-            self.active_chan(chan)
 
-        total_traces = self.traces_number(chan)
+        # total_traces = self.traces_number(chan)
 
         parameters = {'freq_start': self.freq_start(),
                       'freq_stop': self.freq_stop(),
@@ -418,8 +362,6 @@ class E5071C:
 
     def set_parameters(self, chan="", **kwargs):
         # TODO: test this and read get **kwargs from a config file
-        if chan == "":
-            chan = self._active_chan
         parameters = {'freq_start': self.freq_start,
                       'freq_stop': self.freq_stop,
                       'freq_center': self.freq_center,
@@ -445,14 +387,15 @@ class E5071C:
     ##############################
     # send commands
     ##############################
+    
     def _com(self, cmd):
         if self.verbatim:
             print(cmd)
         if cmd[-1] == '?':
             value = self._inst.query(cmd)
-            if value.isnumeric():
+            try:
                 return float(value)
-            else:
+            except:
                 return value
             # try:
             #     return float(value)
@@ -522,10 +465,10 @@ if __name__ == "__main__":
     ################
     # Read the data on the screen
     ################
-    print(vna.freq_read())
-    print(vna.trace_read(1)[0])
-    print(vna.trace_read(2)[0])
-    data = vna.trace_read(3)
+    print(vna.read_freq())
+    print(vna.read_trace(1)[0])
+    print(vna.read_trace(2)[0])
+    data = vna.read_trace(3)
     print(data[0])
     print(data[1])
     data = vna.read_all_traces()  # This command gets values for x axis and the primary and secondary data for all the traces.
