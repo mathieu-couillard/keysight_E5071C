@@ -2,7 +2,7 @@
 June 2022
 @author: Mathieu Couillard
 
-Driver for ENA E5071C
+Driver for VNA E5071C
 """
 
 import numpy as np
@@ -11,13 +11,13 @@ import pyvisa as visa
 from time import sleep
 
 
-def get_or_set_num(arg) -> str:
+def format_num(arg) -> str:
     if arg == None or '?':
         return '?'
     else:
         return ' ' + str(arg)
 
-def get_or_set_dict(arg, arg_dict) -> str:
+def format_from_dict(arg, arg_dict) -> str:
     arg = str(arg).lower()
     try:
         return arg_dict[arg]
@@ -58,14 +58,14 @@ class E5071C:
         return self._com(":DISP:SPL{}".format(chans))
 
     def active_chan(self, chan=None):
-        chan = get_or_set_num(chan)
+        chan = format_num(chan)
         if chan == '?':
             return self._com(':SERV:CHAN:ACT?')
         else:
             return self._com(":DISP:WIND{}:ACT".format(chan))
 
     def active_trace(self, trace=None, chan=""):
-        trace = get_or_set_num(trace)
+        trace = format_num(trace)
         if trace == '?':
             return self._com(":SERV:CHAN{}:TRAC:ACT?".format(chan))
         else:
@@ -79,7 +79,7 @@ class E5071C:
         return self._com(":SENS{}:AVER:CLE".format(chan))
 
     def average_count(self, count=None, chan=""):
-        count = get_or_set_num(count)
+        count = format_num(count)
         return self._com(":SENS{}:AVER:COUN{}".format(chan, count))
 
     def average_state(self, state=None, chan=""):
@@ -95,27 +95,27 @@ class E5071C:
     ########################################
     # TODO: Make argument to choose units from a dictionary and make the default GHz
     def freq_start(self, freq=None, chan=""):
-        freq = get_or_set_num(freq) 
+        freq = format_num(freq) 
         return self._com(":SENS{}:FREQ:STAR{}E9".format(chan, freq))
 
     def freq_stop(self, freq=None, chan=""):
-        freq = get_or_set_num(freq)
+        freq = format_num(freq)
         return self._com(":SENS{}:FREQ:STOP{}E9".format(chan, freq))
 
     def freq_center(self, freq=None, chan=""):
-        freq = get_or_set_num(freq)
+        freq = format_num(freq)
         return self._com(":SENS{}:FREQ:CENT{}E9".format(chan, freq))
 
     def freq_span(self, freq=None, chan=""):
-        freq = get_or_set_num(freq)
+        freq = format_num(freq)
         return self._com(":SENS{}:FREQ:SPAN{}E9".format(chan, freq))
 
     def points(self, points=None, chan=""):
-        points = get_or_set_num(points) 
+        points = format_num(points) 
         return self._com(":SENS{}:SWE:POIN{}".format(chan, points))
 
     def ifbw(self, bandwidth=None, chan=""):
-        bandwidth = get_or_set_num(bandwidth)
+        bandwidth = format_num(bandwidth)
         return self._com(":SENS{}:BAND:RES{}".format(chan, bandwidth))
 
     def bandwidth(self, bandwidth=None, chan=""):
@@ -149,15 +149,15 @@ class E5071C:
     ########################################
 
     def delay(self, delay=None, chan=""):
-        delay = get_or_set_num(delay)
+        delay = format_num(delay)
         return self._com(":CALC{}:CORR:EDEL:TIME{}".format(chan, delay))
 
     def phase_offset(self, phase=None, chan=""):
-        phase = get_or_set_num(phase)
+        phase = format_num(phase)
         return self._com(":CALC{}:CORR:OFFS:PHAS{}".format(chan, phase))
 
     def power(self, power=None, source=''):
-        power = get_or_set_num(power)
+        power = format_num(power)
         return self._com(':SOUR{}:POW{}'.format(source, power))
 
     def output(self, out=None):
@@ -178,9 +178,9 @@ class E5071C:
                        'log': ' LOG',
                        'segmented': ' SEG',
                        'power': ' POW',
-                       '?': ' ?'
+                       '?': '?'
                        }
-        sweep_type = get_or_set_dict(sweep_type, sweep_types)
+        sweep_type = format_from_dict(sweep_type, sweep_types)
         return self._com(':SENS{}:SWE:TYPE{}'.format(chan, sweep_type))
 
     def s_par(self, s_par=None, trace="", chan=""):
@@ -190,7 +190,7 @@ class E5071C:
                    's41': ' S41', 's42': ' S42', 's43': ' S43', 's44': ' S44',
                    '?': '?'
                    }
-        s_par = get_or_set_dict(s_par,options)
+        s_par = format_from_dict(s_par,options)
         if s_par in options:
             return self._com(':CALC{}:PAR{}:DEF{}'.format(chan, trace, s_par))
 
@@ -204,7 +204,7 @@ class E5071C:
                    "bus": " BUS",
                    "?": "?"
                    }
-        source = get_or_set_dict(source, sources)
+        source = format_from_dict(source, sources)
         return self._com(":TRIG:SOUR{}".format(source))
 
     def trigger_initiate(self, state=None, chan=""):
@@ -212,7 +212,7 @@ class E5071C:
                    "off": " OFF", "0": " 0", "false": " 0",
                    "?": "?"
                    }
-        state = get_or_set_dict(state, options)
+        state = format_from_dict(state, options)
         return self._com('INIT{}:CONT {}'.format(chan, state))
 
     def trigger_now(self):
@@ -232,7 +232,7 @@ class E5071C:
                    "off": " OFF", "0": " 0", "false": " 0",
                    "?": "?"
                    }
-        averaging = get_or_set_dict(averaging, options)
+        averaging = format_from_dict(averaging, options)
         return self._com(":TRIG:SEQ:AVER{}".format(averaging))
 
     ########################################
@@ -246,7 +246,7 @@ class E5071C:
                    'real32': ' REAL32',
                    '?': '?'
                    }
-        form = get_or_set_dict(form, formats)
+        form = format_from_dict(form, formats)
         return self._com(':FORMat:DATA{}'.format(form))
 
     def read_freq(self):
