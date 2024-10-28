@@ -11,18 +11,22 @@ import pyvisa as visa
 from time import sleep
 
 
-def format_num(arg) -> str:
-    if arg == None or '?':
+def format_num(arg, units=1) -> str:
+    if arg == None or arg == '?':
         return '?'
     else:
+        # TODO: Make dictionary of units
+        arg = float(arg)*units
         return ' ' + str(arg)
 
 def format_from_dict(arg, arg_dict) -> str:
+    if arg == None:
+        arg = '?'
     arg = str(arg).lower()
     try:
         return arg_dict[arg]
     except:
-        print("InvalidInputError: Argument must be : {}".format(", ".join(list(arg_dict.keys()))))
+        print("InvalidInputError: Argument must be : {}".format(list(arg_dict.keys())))
         return '?' # FIXME: There should be a better way to handle this error with querying the device.
 
 class E5071C:
@@ -54,7 +58,7 @@ class E5071C:
                    '123456': ' D1_2_3_4_5_6',
                    '?': '?'
                    }
-        chans = get_or_set_dict(chans, options)
+        chans = format_from_dict(chans, options)
         return self._com(":DISP:SPL{}".format(chans))
 
     def active_chan(self, chan=None):
@@ -87,28 +91,28 @@ class E5071C:
                    'off': ' off', '0': ' 0', 'false': ' 0',
                    '?': '?'
                    }
-        state = get_or_set_dict(state, options)
-        return self._com(":SENS{}:AVER:STAT{}".format(chan, options[state]))
+        state = format_from_dict(state, options)
+        return self._com(":SENS{}:AVER:STAT{}".format(chan, state))
 
     ########################################
     # Frequency axis
     ########################################
     # TODO: Make argument to choose units from a dictionary and make the default GHz
     def freq_start(self, freq=None, chan=""):
-        freq = format_num(freq) 
-        return self._com(":SENS{}:FREQ:STAR{}E9".format(chan, freq))
+        freq = format_num(freq, 1) 
+        return self._com(":SENS{}:FREQ:STAR{}".format(chan, freq))
 
     def freq_stop(self, freq=None, chan=""):
-        freq = format_num(freq)
-        return self._com(":SENS{}:FREQ:STOP{}E9".format(chan, freq))
+        freq = format_num(freq, 1)
+        return self._com(":SENS{}:FREQ:STOP{}".format(chan, freq))
 
     def freq_center(self, freq=None, chan=""):
-        freq = format_num(freq)
-        return self._com(":SENS{}:FREQ:CENT{}E9".format(chan, freq))
+        freq = format_num(freq, 1)
+        return self._com(":SENS{}:FREQ:CENT{}".format(chan, freq))
 
     def freq_span(self, freq=None, chan=""):
-        freq = format_num(freq)
-        return self._com(":SENS{}:FREQ:SPAN{}E9".format(chan, freq))
+        freq = format_num(freq, 1)
+        return self._com(":SENS{}:FREQ:SPAN{}".format(chan, freq))
 
     def points(self, points=None, chan=""):
         points = format_num(points) 
@@ -141,7 +145,7 @@ class E5071C:
                          'plog': ' PLOG',
                          'real_imag': ' POL',
                          '?': '?'}
-        trace_format = get_or_set_dict(trace_format,trace_formats)
+        trace_format = format_from_dict(trace_format,trace_formats)
         return self.average_count(':CALC{}:SEL:FORM{}'.format(chan, trace_format))
 
     ########################################
@@ -169,7 +173,7 @@ class E5071C:
                    '0': ' 0',
                    '?': '?'
                    }
-        out = get_or_set_dict(out, options)
+        out = format_from_dict(out, options)
         return self._com(":OUTP{}".format(out))
 
     def sweep_type(self, sweep_type=None, chan=""):
