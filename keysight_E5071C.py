@@ -11,14 +11,17 @@ import pyvisa as visa
 from time import sleep
 
 
-def format_num(arg, units=1) -> str:
+def format_num(arg, units=1, limits=(-float('inf'),float('inf'))) -> str:
     if arg == None or arg == '?':
         return '?'
     else:
         # TODO: Make dictionary of units
         arg = float(arg)*units
-        return ' ' + str(arg)
-
+        if limits[0]<=arg<=limits[1]:
+            return ' ' + str(arg)
+        else:
+            raise Exception("OutOfRangeException: Value must be between {} and {}.".format(limits[0], limits[1]))
+        
 def format_from_dict(arg, arg_dict) -> str:
     if arg == None:
         arg = '?'
@@ -30,8 +33,11 @@ def format_from_dict(arg, arg_dict) -> str:
         return '?' # FIXME: There should be a better way to handle this error with querying the device.
 
 class E5071C:
-    def __init__(self, address, configs="", verbatim=False):
-        self._inst = visa.ResourceManager('@py').open_resource(address)
+    def __init__(self, address, configs="", visa_backend=None, verbatim=False):
+        if visa_backend==None:
+            self._inst = visa.ResourceManager().open_resource(address)
+        else:
+            self._inst = visa.ResourceManager(visa_backend).open_resource(address)
         self.verbatim = verbatim
         identity = self.identify()
         print("Identity: {}".format(identity))
