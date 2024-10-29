@@ -2,7 +2,7 @@
 June 2022
 @author: Mathieu Couillard
 
-Driver for VNA E5071C
+Driver for Keysight K5071C Vector Network Analyzer
 """
 
 import numpy as np
