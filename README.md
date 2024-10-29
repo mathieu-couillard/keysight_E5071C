@@ -7,13 +7,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 # Requirements
 numpy  
 pyvisa  
-pyvisa-py
+visa backend (e.g.: ivi, pyvisa-py, R&S ...)
 
 # Usage
 This driver provides most commands to scan a frequency range and collect traces on any of channels. Commands can change settings individually or change many parameters related to a specific feature (e.g.: set_trigger(), set_averaging(), set_freq_axis(), set_response_axes()) which takes the paramters as arguments, or any arbitrary set of parameters using the set_paramters() which takes as dictionary as an argument(Look at this function to find the dictionary keys).
 
-When methods that are queries are sent, the query responds is return. When methods that are commands are sent, the command, as a string is returned.
+When methods that are queries are sent, the query responds is return. When methods that are write commands are sent, the command, as a string is returned. You can also print every command sent using the verbatim=True when instantiating.
 
+Methods with write and query will default to the query when no argument is sent.
+
+```
+vna.freq_center() # get center frequency
+vna.freq_center(5e9) # set center frequency to 5 GHz
+```
 
 Two ways to use the code are shown, one shorter:
 ```
