@@ -17,6 +17,8 @@ def format_num(arg, units=1, limits=(-float('inf'),float('inf'))) -> str:
     else:
         # TODO: Make dictionary of units
         arg = float(arg)*units
+        if arg%1 == 0:
+            arg = int(arg)
         if limits[0]<=arg<=limits[1]:
             return ' ' + str(arg)
         else:
@@ -217,13 +219,15 @@ class E5071C:
         source = format_from_dict(source, sources)
         return self._com(":TRIG:SOUR{}".format(source))
 
+
     def trigger_initiate(self, state=None, chan=""):
-        options = {"on": " ON", "1": " 1", "true": " 1",
-                   "off": " OFF", "0": " 0", "false": " 0",
+        options = {"cont": ":CONT ON",
+                   "hold": ":CONT OFF",
+                   "single": "",
                    "?": "?"
                    }
         state = format_from_dict(state, options)
-        return self._com('INIT{}:CONT {}'.format(chan, state))
+        return self._com('INIT{}{}'.format(chan, state))
 
     def trigger_now(self):
         if self.average_state() == 1:
@@ -303,9 +307,18 @@ class E5071C:
     def idn(self):
         return self._com("*IDN?")
 
+    def reset(self):
+        return self._com('*RST')
+
+    def rst(self):
+        return self._com('*RST')
+        
     def operation_complete(self):
         return self._com("*OPC?")
 
+    def opc(self):
+        return self.operation_complete()
+ 
     def get_sweep_time(self):
         return self._com("SENS:SWE:TIME?")
 
@@ -313,7 +326,7 @@ class E5071C:
     ########################################
     # parameters
     ########################################
-    def set_trigger(self, source='bus', averaging=0, initiate=True):
+    def set_trigger(self, source='bus', averaging=0, initiate="single"):
         self.trigger_source(source)
         self.trigger_averaging(averaging)
         self.trigger_initiate(initiate)
@@ -470,7 +483,7 @@ if __name__ == "__main__":
     ################
     print(vna.trigger_source('bus'))
     print(vna.trigger_averaging(0))
-    print(vna.trigger_initiate(True))
+    print(vna.trigger_initiate('single'))
     print(vna.trigger_now())
     ################
     # Read the data on the screen
