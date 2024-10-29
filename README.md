@@ -12,9 +12,9 @@ visa backend (e.g.: ivi, pyvisa-py, R&S ...)
 # Usage
 This driver provides most commands to scan a frequency range and collect traces on any of channels. Commands can change settings individually or change many parameters related to a specific feature (e.g.: set_trigger(), set_averaging(), set_freq_axis(), set_response_axes()) which takes the paramters as arguments, or any arbitrary set of parameters using the set_paramters() which takes as dictionary as an argument(Look at this function to find the dictionary keys).
 
-When methods that are queries are sent, the query responds is return. When methods that are write commands are sent, the command, as a string is returned. You can also print every command sent using the verbatim=True when instantiating.
+You can print every command sent using the verbatim=True when instantiating.
 
-Methods with write and query will default to the query when no argument is sent.
+Methods with write and query will default to the query when no argument is given.
 
 ```
 vna.freq_center() # get center frequency
