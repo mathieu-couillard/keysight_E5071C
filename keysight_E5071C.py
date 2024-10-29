@@ -44,7 +44,7 @@ class E5071C:
         identity = self.identify()
         print("Identity: {}".format(identity))
         if "E5071C" not in identity:
-            Exception("WARNING: This IP:{} is not a E5071C vector network analyzer."
+            Exception("WARNING: The device:{} is not a E5071C vector network analyzer."
                       "\nSome commands may not work.".format(address))
 
         self.verbatim = verbatim  # Print every command before sending
