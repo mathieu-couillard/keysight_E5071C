@@ -7,7 +7,7 @@ name = "keysight_E5071C"
 version = "1.0.0" 
 description = "A driver for the Keysight E5071C vector network analyzer"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.7"
 license = { file = "LICENSE.txt" }
 keywords = ["Keysight", "E5071C", "VNA", "vector netowrk analyzer"]
 authors = [{ name = "Mathieu Couillard", email = "mathieu.couillard@outlook.com" }]
@@ -20,6 +20,8 @@ classifiers = [
   "Topic :: Microwave engineering :: Microwave engineering",
   "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
