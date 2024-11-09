@@ -16,7 +16,7 @@ git clone https://github.com/mathieu-couillard/keysight_E5071C.git
 cd keysight_E5071C
 pip install .
 cd ..
-rm -r keysight_E5071C
+rm -fr keysight_E5071C
 ```
 
 # Usage
