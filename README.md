@@ -9,6 +9,16 @@ numpy
 pyvisa  
 visa backend (e.g.: ivi, pyvisa-py, R&S ...)
 
+# Installation
+
+```
+git clone https://github.com/mathieu-couillard/keysight_E5071C.git
+cd keysight_E5071C
+pip install .
+cd ..
+rm -r keysight_E5071C
+```
+
 # Usage
 This driver provides most commands to scan a frequency range and collect traces on any of channels. Commands can change settings individually or change many parameters related to a specific feature (e.g.: set_trigger(), set_averaging(), set_freq_axis(), set_response_axes()) which takes the paramters as arguments, or any arbitrary set of parameters using the set_paramters() which takes as dictionary as an argument(Look at this function to find the dictionary keys).
 

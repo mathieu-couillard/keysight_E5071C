@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools"] 
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keysight_E5071C" 
+version = "1.0.0" 
+description = "A driver for the Keysight E5071C vector network analyzer"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE.txt" }
+keywords = ["Keysight", "E5071C", "VNA", "vector netowrk analyzer"]
+authors = [{ name = "Mathieu Couillard", email = "mathieu.couillard@outlook.com" }]
+maintainers = [
+  { name = "Mathieu Couillard", email = "mathieu.couillard@outlook.com"},
+]
+classifiers = [
+  "Development Status :: 4 -  Beta",
+  "Intended Audience :: Physicists :: Engineers ",
+  "Topic :: Microwave engineering :: Microwave engineering",
+  "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = ["pyvisa", "numpy"]
+
+
+[project.urls]
+"Homepage" = "https://github.com/mathieu-couillard/keysight_E5071C"
+
