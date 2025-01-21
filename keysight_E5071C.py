@@ -53,8 +53,10 @@ class E5071C:
     # Selecting channel and trace
     ########################################
     def traces_number(self, num=None, chan=""):
-        if num != '?':
+        if num != None:
             num = " " + str(num)
+        elif num == None:
+            num = "?"
         return self._com(":CALC{}:PAR:COUN{}".format(chan, num))
 
     def displayed_channels(self, chans='?'):
@@ -154,7 +156,7 @@ class E5071C:
                          'real_imag': ' POL',
                          '?': '?'}
         trace_format = format_from_dict(trace_format,trace_formats)
-        return self.average_count(':CALC{}:SEL:FORM{}'.format(chan, trace_format))
+        return self._com(':CALC{}:SEL:FORM{}'.format(chan, trace_format))
 
     ########################################
     # Output
@@ -279,24 +281,22 @@ class E5071C:
         return data[0::2], data[1::2]
 
     def read_all_traces(self):
-        # TODO: test this method
         # read the x axis and all traces of the active channel
-        self.trigger_now()
+        traces = int(self.traces_number())
+        points = int(self.points())
+        
+        data = np.empty((2*traces+1, points))
         self.format_data('real')
 
-        vectors = self.traces_number()
-        points = self.points()
-
-        data = np.empty((2 * vectors + 1, points))
-
         data[0] = self._com_binary(':CALC:SEL:DATA:XAXis?')
-        for trace in range(int(self.traces_number())):
-            y1, y2 = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace + 1))
-            data[2 * trace + 1] = y1
-            data[2 * trace + 2] = y2
-        self.format_data('ascii')
+        for trace in range(traces):
+            raw_data = self._com_binary(':CALC:TRACe{}:DATA:FDATa?'.format(trace+1))
+            data[2*trace + 1] = raw_data[0::2]
+            data[2*trace + 2] = raw_data[1::2]
 
+        self.format_data('ascii')
         return data
+
 
     def close(self):
         self._inst.close()
@@ -444,35 +444,35 @@ if __name__ == "__main__":
     # Create object/Connect to device.
     ################
     rm = visa.ResourceManager('@py')
-    ip = '192.168.0.117'
+    ip = '192.168.0.100'
     vna = E5071C("TCPIP::{}::INSTR".format(ip))
     ################
     # Set up parameters related to frequency scan.
     ################
-    vna.freq_start(1)
-    vna.freq_stop(2)
+    vna.freq_start(6.17)
+    vna.freq_stop(6.25)
     vna.points(1001)
     vna.bandwidth(1000)
     vna.sweep_type('lin')
     ################
     # Set up trace related commands. Channel related commands are similar.
     ################
-    vna.traces_number(3)
+    vna.traces_number(2)
     vna.active_trace(1)
-    vna.s_par('S12')
+    vna.s_par('S33')
     print(vna.format_trace('mlog'))
     vna.delay(1)
-    vna.phase_offset(180)
+    vna.phase_offset(15)
     print(vna.active_trace(2))
-    vna.s_par('S12')
+    vna.s_par('S33')
     vna.delay(1)
-    vna.phase_offset(180)
+    vna.phase_offset(15)
     print(vna.format_trace('phase'))
-    print(vna.active_trace(3))
-    vna.s_par('S12')
-    vna.delay(1)
-    vna.phase_offset(180)
-    print(vna.format_trace('Plog'))
+    # print(vna.active_trace(3))
+    # vna.s_par('S12')
+    # vna.delay(1)
+    # vna.phase_offset(180)
+    # print(vna.format_trace('Plog'))
     ################
     # Set up averaging parameters. Don't forget to set the "vna.trigger_averaging(True)" when using averaging
     ################
@@ -488,10 +488,10 @@ if __name__ == "__main__":
     ################
     # Read the data on the screen
     ################
-    print(vna.read_freq())
-    print(vna.read_trace(1)[0])
-    print(vna.read_trace(2)[0])
-    data = vna.read_trace(3)
-    print(data[0])
-    print(data[1])
+    # print(vna.read_freq())
+    # print(vna.read_trace(1)[0])
+    # print(vna.read_trace(2)[0])
+    # data = vna.read_trace(3)
+    # print(data[0])
+    # print(data[1])
     data = vna.read_all_traces()  # This command gets values for x axis and the primary and secondary data for all the traces.
